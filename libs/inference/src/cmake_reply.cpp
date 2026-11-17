@@ -12,7 +12,7 @@ Result<nlohmann::json> decode_proposal(string_view response) {
     using nlohmann::json;
     const auto envelope = json::parse(response, nullptr, false);
     if (envelope.is_object() && envelope.contains("done_reason") && envelope["done_reason"] == "length") {
-        return Error{ErrorCode::prerequisite, "Ollama exhausted the generation token limit; try a smaller project specification"};
+        return Error{ErrorCode::prerequisite, "Ollama exhausted the generation token limit. For generate-project, increase --max-output-tokens and allow sufficient --timeout-seconds"};
     }
     if (!envelope.is_object() || envelope.contains("error") ||
         !envelope.contains("done") || envelope["done"] != true ||

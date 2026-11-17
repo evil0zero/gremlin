@@ -34,6 +34,15 @@ foreach(kind IN ITEMS missing empty oversized)
     endif()
 endforeach()
 
+foreach(tokens IN ITEMS 0 127 65537 -1 17s 1.5 +2 999999999999999999999999999999)
+    execute_process(COMMAND "${EXE}" generate-project --source "${new_dest}"
+        --prompt "A specification" --model sample:model --curl missing-provider
+        --max-output-tokens "${tokens}" RESULT_VARIABLE code ERROR_VARIABLE error)
+    if(NOT code EQUAL 2 OR EXISTS "${new_dest}" OR NOT error MATCHES "--max-output-tokens")
+        message(FATAL_ERROR "Invalid output token budget ${tokens} returned ${code}: ${error}")
+    endif()
+endforeach()
+
 foreach(command IN ITEMS generate-project generate-cmake)
     foreach(timeout IN ITEMS 0 -1 7201 17s 1.5 +2 999999999999999999999999999999)
         execute_process(COMMAND "${EXE}" "${command}" --source "${new_dest}"

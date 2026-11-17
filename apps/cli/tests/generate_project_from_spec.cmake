@@ -49,14 +49,18 @@ foreach(spec_size IN ITEMS 15537 32768)
 endforeach()
 
 file(WRITE "${work_dir}/expected-timeout.txt" "123\n")
-set(destination "${work_dir}/generated explicit timeout")
-execute_process(COMMAND "${EXE}" generate-project --source "${destination}" --spec "${spec}"
-    --model fixture:local --curl "${CURL}" --timeout-seconds 123
-    WORKING_DIRECTORY "${work_dir}" TIMEOUT 25
-    RESULT_VARIABLE code OUTPUT_VARIABLE output ERROR_VARIABLE error)
-if(NOT code STREQUAL "0" OR NOT EXISTS "${destination}/main.cpp")
-    message(FATAL_ERROR "Explicit generation timeout returned ${code}: ${output}${error}")
-endif()
+foreach(output_tokens IN ITEMS 128 16384 65536)
+    file(WRITE "${work_dir}/expected-output-tokens.txt" "${output_tokens}\n")
+    set(destination "${work_dir}/generated explicit budget-${output_tokens}")
+    execute_process(COMMAND "${EXE}" generate-project --source "${destination}" --spec "${spec}"
+        --model fixture:local --curl "${CURL}" --timeout-seconds 123 --max-output-tokens "${output_tokens}"
+        WORKING_DIRECTORY "${work_dir}" TIMEOUT 25
+        RESULT_VARIABLE code OUTPUT_VARIABLE output ERROR_VARIABLE error)
+    if(NOT code STREQUAL "0" OR NOT EXISTS "${destination}/main.cpp")
+        message(FATAL_ERROR "Explicit output budget ${output_tokens} returned ${code}: ${output}${error}")
+    endif()
+endforeach()
+file(REMOVE "${work_dir}/expected-output-tokens.txt")
 
 file(WRITE "${work_dir}/expected-timeout.txt" "17\n")
 file(WRITE "${work_dir}/simulate-timeout.txt" "Simulate curl exit 28 without waiting.\n")

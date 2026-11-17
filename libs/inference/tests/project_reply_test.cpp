@@ -9,6 +9,13 @@ using namespace gremlin;
 using nlohmann::json;
 
 int main() {
+    for (const size_t tokens : {size_t(0), size_t(127), size_t(65537)}) {
+        CMakeInferenceRequest request{"fixture:local", "A specification", {}, {}, {}};
+        request.max_output_tokens = tokens;
+        const auto result = infer_project(request);
+        const auto* error = get_if<Error>(&result);
+        if (!error || error->code != ErrorCode::input || error->message.find("token") == string::npos) return 12;
+    }
     for (const int seconds : {0, -1, 7201}) {
         const CMakeInferenceRequest request{"fixture:local", "A specification", {}, {}, {}, chrono::seconds(seconds)};
         const auto project = infer_project(request);

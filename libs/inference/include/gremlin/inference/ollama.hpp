@@ -18,6 +18,7 @@ struct CMakeInferenceRequest {
     std::filesystem::path log_dir;
     // Unset uses the operation's default deadline.
     std::optional<std::chrono::seconds> timeout = std::nullopt;
+    std::size_t max_output_tokens = 12288;
 };
 
 inline constexpr std::size_t cmake_prompt_limit = 8192;

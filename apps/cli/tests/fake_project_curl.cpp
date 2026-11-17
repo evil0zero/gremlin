@@ -53,7 +53,18 @@ int main(int argc, char** argv) {
                 return 5;
             }
             const auto context = payload.at("options").at("num_ctx").get<size_t>();
-            if (context < specification.size() + 12288 + 2048 || context > 49152) {
+            const auto output_tokens = payload.at("options").at("num_predict").get<size_t>();
+            size_t expected_output_tokens = size_t(12288);
+            if (fs::exists("expected-output-tokens.txt")) {
+                ifstream expected("expected-output-tokens.txt");
+                expected >> expected_output_tokens;
+                if (!expected) return 11;
+            }
+            if (output_tokens != expected_output_tokens) {
+                cerr << "Expected output token budget " << expected_output_tokens << ", got " << output_tokens << endl;
+                return 12;
+            }
+            if (context < specification.size() + output_tokens + 2048 || context > 106496) {
                 cerr << "The chat context does not cover the specification and output budget" << endl;
                 return 8;
             }

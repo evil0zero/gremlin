@@ -111,7 +111,8 @@ int generate_cmake(const string& name, const vector<string>& args) {
         const auto& option = args[i];
         if (i + 1 == args.size() || args[i + 1].empty() ||
             (option != "--source" && option != "--model" && option != "--curl" &&
-             option != "--prompt" && option != "--spec" && option != "--timeout-seconds") ||
+             option != "--prompt" && option != "--spec" && option != "--timeout-seconds" &&
+             !(whole_project && option == "--max-output-tokens")) ||
             !options.emplace(option, args[i + 1]).second) {
             return fail(name, {ErrorCode::input, "invalid " + command + " options. See " + name + " --help"});
         }
@@ -132,6 +133,15 @@ int generate_cmake(const string& name, const vector<string>& args) {
         }
         timeout = chrono::seconds(seconds);
     }
+    size_t output_tokens = 12288;
+    if (options.contains("--max-output-tokens")) {
+        const auto& value = options.at("--max-output-tokens");
+        const auto end = value.data() + value.size();
+        const auto parsed = from_chars(value.data(), end, output_tokens);
+        if (parsed.ec != errc{} || parsed.ptr != end || output_tokens < 128 || output_tokens > 65536) {
+            return fail(name, {ErrorCode::input, "--max-output-tokens must be an integer from 128 to 65536"});
+        }
+    }
     const auto source = path_from_utf8(options.at("--source"));
     const auto log = fs::path("out/logs/inference") / JobId::generate().value;
     if (whole_project) {
@@ -140,9 +150,10 @@ int generate_cmake(const string& name, const vector<string>& args) {
         }
         auto prompt = read_prompt(options, fs::current_path(), project_prompt_limit);
         if (const auto* error = get_if<Error>(&prompt)) return fail(name, *error);
-        cout << "Generating project with " << options.at("--model") << ". Waiting up to "
+        cout << "Generating project with " << options.at("--model") << ", up to "
+             << output_tokens << " output tokens. Waiting up to "
              << timeout.value_or(chrono::seconds(900)).count() << " seconds for Ollama." << endl;
-        const auto result = infer_project({options.at("--model"), move(get<string>(prompt)), {}, curl_path(options), log, timeout});
+        const auto result = infer_project({options.at("--model"), move(get<string>(prompt)), {}, curl_path(options), log, timeout, output_tokens});
         if (const auto* error = get_if<Error>(&result)) return fail(name, *error);
         const auto& files = get<vector<ProjectFile>>(result);
         const auto published = publish_project(source, files);
@@ -304,6 +315,7 @@ int dispatch(const vector<string>& args) {
                   << "          [--prompt TEXT | --spec FILE] [--curl FILE] [--timeout-seconds 1-7200]\n"
                   << "       " << name << " generate-project --source NEW_DIR --model NAME:TAG\n"
                   << "          [--prompt TEXT | --spec FILE] [--curl FILE] [--timeout-seconds 1-7200]\n"
+                  << "          [--max-output-tokens 128-65536]\n"
                   << "       " << name << " build --trust-source --source DIR --build-dir NEW_DIR\n"
                   << "          --cmake FILE --ctest FILE --ninja FILE --compiler FILE [--profile Debug]\n"
                   << "       " << name << " repair-cmake --trust-source --source DIR --model NAME:TAG\n"

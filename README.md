@@ -42,6 +42,11 @@ time for a large project or a slower local model, pass `--timeout-seconds 1800`.
 Values from 1 to 7200 are accepted. `generate-cmake` supports the same option
 and defaults to 180 seconds. Ollama returns the completed response at the end
 of generation, so the CLI may remain quiet while the model generates files.
+The default output budget is 12,288 tokens. For a larger application, use
+`--max-output-tokens 24576 --timeout-seconds 1800`. Output budgets from 128 to
+65,536 are accepted. Larger budgets also increase the requested model context
+and memory needs. If the model reaches the budget, generation fails before
+publishing any files.
 
 ## Generate CMake from a prompt
 
