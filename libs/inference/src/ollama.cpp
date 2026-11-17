@@ -226,14 +226,17 @@ Result<string> infer_cmake(const CMakeInferenceRequest& request) {
 }
 
 Result<vector<ProjectFile>> infer_project(const CMakeInferenceRequest& request) {
-    if (request.prompt.size() > cmake_prompt_limit ||
+    if (request.prompt.size() > project_prompt_limit ||
         request.prompt.find_first_not_of(" \t\n\r") == string::npos) {
-        return Error{ErrorCode::input, "expected a nonempty project specification of at most 8192 bytes"};
+        return Error{ErrorCode::input, "expected a nonempty project specification of at most " +
+            std::to_string(project_prompt_limit) + " bytes, received " + std::to_string(request.prompt.size())};
     }
     try {
+        // Budget for a worst-case one-token-per-byte specification, output, and message overhead.
+        const auto context = max(size_t(24576), ((request.prompt.size() + 12288 + 2048 + 8191) / 8192) * 8192);
         json payload = {
             {"model", request.model}, {"stream", false}, {"keep_alive", 0},
-            {"options", {{"temperature", 0}, {"num_ctx", 24576}, {"num_predict", 12288}}},
+            {"options", {{"temperature", 0}, {"num_ctx", context}, {"num_predict", 12288}}},
             {"format", json::parse(R"json({"type":"object","additionalProperties":false,"required":["files"],
                 "properties":{"files":{"type":"array","items":{"type":"object","additionalProperties":false,
                 "required":["path","content"],"properties":{"path":{"type":"string"},"content":{"type":"string"}}}}}})json")},

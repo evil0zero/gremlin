@@ -51,7 +51,8 @@ filesystem::path curl_path(const Options& options) {
 #endif
 }
 
-gremlin::Result<string> read_prompt(const Options& options, const filesystem::path& source) {
+gremlin::Result<string> read_prompt(const Options& options, const filesystem::path& source,
+        size_t limit = gremlin::cmake_prompt_limit) {
     namespace fs = filesystem;
     using namespace gremlin;
     if (options.contains("--prompt") && options.contains("--spec")) {
@@ -59,14 +60,27 @@ gremlin::Result<string> read_prompt(const Options& options, const filesystem::pa
     }
     if (options.contains("--prompt")) return options.at("--prompt");
     const auto spec = options.contains("--spec") ? path_from_utf8(options.at("--spec")) : source / "ProjectPrompt.md";
-    if (!fs::is_regular_file(spec) || fs::file_size(spec) > cmake_prompt_limit) {
-        return Error{ErrorCode::input, "expected a readable prompt file of at most 8192 bytes"};
+    const auto encoded = spec.generic_u8string();
+    const string label(encoded.begin(), encoded.end());
+    error_code error;
+    if (!fs::is_regular_file(spec, error)) {
+        return Error{ErrorCode::input, "prompt file is missing or unreadable: " + label};
+    }
+    const auto bytes = fs::file_size(spec, error);
+    if (error) return Error{ErrorCode::input, "could not determine prompt file size: " + label};
+    if (bytes > limit) {
+        return Error{ErrorCode::input, "prompt file " + label + " has " + to_string(bytes) +
+            " bytes; limit is " + to_string(limit) + " bytes"};
     }
     ifstream input(spec, ios::binary);
-    string prompt(cmake_prompt_limit + 1, '\0');
+    if (!input) return Error{ErrorCode::input, "could not open prompt file: " + label};
+    string prompt(limit + 1, '\0');
     input.read(prompt.data(), static_cast<streamsize>(prompt.size()));
-    if (input.bad() || input.gcount() == 0 || input.gcount() > static_cast<streamsize>(cmake_prompt_limit)) {
-        return Error{ErrorCode::input, "could not read a nonempty bounded prompt file"};
+    if (input.bad() || input.gcount() == 0) {
+        return Error{ErrorCode::input, "prompt file is empty or could not be read: " + label};
+    }
+    if (input.gcount() > static_cast<streamsize>(limit)) {
+        return Error{ErrorCode::input, "prompt file exceeds " + to_string(limit) + " bytes: " + label};
     }
     prompt.resize(static_cast<size_t>(input.gcount()));
     return prompt;
@@ -113,7 +127,7 @@ int generate_cmake(const string& name, const vector<string>& args) {
         if (fs::exists(fs::symlink_status(source))) {
             return fail(name, {ErrorCode::input, "destination already exists; choose a new --source directory"});
         }
-        auto prompt = read_prompt(options, fs::current_path());
+        auto prompt = read_prompt(options, fs::current_path(), project_prompt_limit);
         if (const auto* error = get_if<Error>(&prompt)) return fail(name, *error);
         const auto result = infer_project({options.at("--model"), move(get<string>(prompt)), {}, curl_path(options), log});
         if (const auto* error = get_if<Error>(&result)) return fail(name, *error);

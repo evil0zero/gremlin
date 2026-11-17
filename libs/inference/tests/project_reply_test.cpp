@@ -1,4 +1,5 @@
 #include "cmake_reply.hpp"
+#include "gremlin/inference/ollama.hpp"
 #include "gremlin/source/project.hpp"
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -8,6 +9,10 @@ using namespace gremlin;
 using nlohmann::json;
 
 int main() {
+    const auto oversized = infer_project({"fixture:local", string(project_prompt_limit + 1, 'x'), {}, {}, {}});
+    const auto* oversized_error = get_if<Error>(&oversized);
+    if (!oversized_error || oversized_error->code != ErrorCode::input ||
+        oversized_error->message.find("32768") == string::npos) return 10;
     const auto root = filesystem::path("generation-" + JobId::generate().value);
     filesystem::create_directory(root);
     ofstream(root / "ProjectPrompt.md") << "Print fixture output." << endl;

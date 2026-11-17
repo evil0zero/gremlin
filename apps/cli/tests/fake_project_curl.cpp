@@ -50,6 +50,11 @@ int main(int argc, char** argv) {
                 cerr << "The chat request did not contain the exact --spec contents" << endl;
                 return 5;
             }
+            const auto context = payload.at("options").at("num_ctx").get<size_t>();
+            if (context < specification.size() + 12288 + 2048 || context > 49152) {
+                cerr << "The chat context does not cover the specification and output budget" << endl;
+                return 8;
+            }
             const json reply = {{"files", fixture.at("files")}};
             response = {{"done", true}, {"done_reason", "stop"},
                 {"message", {{"role", "assistant"}, {"content", reply.dump()}}}};

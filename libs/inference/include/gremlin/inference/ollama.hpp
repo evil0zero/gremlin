@@ -17,6 +17,7 @@ struct CMakeInferenceRequest {
 };
 
 inline constexpr std::size_t cmake_prompt_limit = 8192;
+inline constexpr std::size_t project_prompt_limit = 32768;
 
 // Requests a file proposal from Ollama at 127.0.0.1:11434.
 // The result is untrusted text and carries no permission to execute it.

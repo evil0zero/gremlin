@@ -30,7 +30,9 @@ $vs = Join-Path $env:ProgramFiles 'Microsoft Visual Studio\18\Community\Common7\
 ```
 
 `generate-project` also accepts `--prompt TEXT` and `--curl FILE`. With neither
-prompt flag it reads `ProjectPrompt.md` from the current directory. It publishes
+prompt flag it reads `ProjectPrompt.md` from the current directory. Project
+specifications can contain up to 32,768 UTF-8 bytes. File errors identify the
+path, and oversized-file errors include the actual size and limit. It publishes
 a complete, validated file inventory to a new directory. Model-generated files
 are proposals. Build and CTest results are recorded separately in the build
 directory's `gremlin-logs`. Generated tests belong under `tests/`.
