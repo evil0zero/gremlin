@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gremlin/core/core.hpp"
+#include "gremlin/core/project_file.hpp"
 
 #include <filesystem>
 #include <vector>
@@ -20,6 +21,7 @@ inline constexpr std::size_t cmake_prompt_limit = 8192;
 // Requests a file proposal from Ollama at 127.0.0.1:11434.
 // The result is untrusted text and carries no permission to execute it.
 Result<std::string> infer_cmake(const CMakeInferenceRequest& request);
+Result<std::vector<ProjectFile>> infer_project(const CMakeInferenceRequest& request);
 
 struct SourceRepairRequest {
     std::string model;

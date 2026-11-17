@@ -1,6 +1,6 @@
 # GREMLIN
 
-GREMLIN can generate a starter project, use local Ollama to draft a `CMakeLists.txt`, build and test trusted CMake projects, and automatically repair missing or incorrect translation-unit selections. The master schedules and verifies `repair-cmake` jobs. Standalone `submit` records a request as `PENDING`.
+GREMLIN can generate a starter project, use local Ollama to generate a complete project or draft a `CMakeLists.txt`, build and test trusted CMake projects, and automatically repair missing or incorrect translation-unit selections. The master schedules and verifies `repair-cmake` jobs. Standalone `submit` records a request as `PENDING`.
 
 ## Try the smoke demo on Windows
 
@@ -12,6 +12,28 @@ Run this from the repository root after building GREMLIN. The default uses the R
 ```
 
 The script invokes GREMLIN's `init` command to generate `CMakeLists.txt`, `main.cpp`, and `check.cmake` in a fresh source directory under `out/smoke/`. It reads the tool paths from GREMLIN's CMake cache and invokes `build` in a sibling directory. CTest checks that the compiled application prints exactly `sweet nothings` followed by a newline and exits successfully. The script then launches it so you can see the output. It prints the log path and preserves the generated source, build logs, and JUnit report in the run directory.
+
+## Generate and build a project from a specification
+
+With local Ollama running, save the requirements in `ProjectPrompt.md`. Start
+with an absent destination. From the extracted Windows distribution, run the
+following commands using your installed model and tool paths.
+
+```powershell
+.\gremlin.exe generate-project --source .\http-server --spec .\ProjectPrompt.md --model "gpt-oss:20b"
+Get-ChildItem .\http-server -Recurse -File
+# Review the generated source, CMake and tests before running the build.
+$vs = Join-Path $env:ProgramFiles 'Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake'
+.\gremlin.exe build --trust-source --source .\http-server --build-dir .\out\http-server-build `
+    --cmake "$vs\CMake\bin\cmake.exe" --ctest "$vs\CMake\bin\ctest.exe" `
+    --ninja "$vs\Ninja\ninja.exe" --compiler 'C:\TDM-GCC-64\bin\g++.exe' --profile Release
+```
+
+`generate-project` also accepts `--prompt TEXT` and `--curl FILE`. With neither
+prompt flag it reads `ProjectPrompt.md` from the current directory. It publishes
+a complete, validated file inventory to a new directory. Model-generated files
+are proposals. Build and CTest results are recorded separately in the build
+directory's `gremlin-logs`. Generated tests belong under `tests/`.
 
 ## Generate CMake from a prompt
 

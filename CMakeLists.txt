@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(GREMLIN VERSION 0.1.0 LANGUAGES CXX)
+project(GREMLIN VERSION 0.2.0 LANGUAGES CXX)
 include(CTest)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(GREMLIN_SQLITE_RUNTIME "" CACHE FILEPATH "SQLite DLL for local Windows executables")

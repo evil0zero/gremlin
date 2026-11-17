@@ -1,4 +1,4 @@
-add_library(gremlin_source STATIC src/scaffold.cpp src/cmake_proposal.cpp)
+add_library(gremlin_source STATIC src/scaffold.cpp src/cmake_proposal.cpp src/project.cpp)
 gremlin_target(gremlin_source)
 target_include_directories(gremlin_source PUBLIC include)
 target_link_libraries(gremlin_source PUBLIC gremlin_core PRIVATE gremlin_platform)

@@ -5,6 +5,7 @@
 #include "gremlin/platform/files.hpp"
 #include "gremlin/source/cmake_proposal.hpp"
 #include "gremlin/source/scaffold.hpp"
+#include "gremlin/source/project.hpp"
 
 #include <charconv>
 #include <filesystem>
@@ -89,6 +90,8 @@ int init_project(const string& name, const vector<string>& args) {
 int generate_cmake(const string& name, const vector<string>& args) {
     using namespace gremlin;
     namespace fs = filesystem;
+    const bool whole_project = args[1] == "generate-project";
+    const auto& command = args[1];
     Options options;
     for (size_t i = 2; i < args.size(); i += 2) {
         const auto& option = args[i];
@@ -96,21 +99,40 @@ int generate_cmake(const string& name, const vector<string>& args) {
             (option != "--source" && option != "--model" && option != "--curl" &&
              option != "--prompt" && option != "--spec") ||
             !options.emplace(option, args[i + 1]).second) {
-            return fail(name, {ErrorCode::input, "invalid generate-cmake options. See " + name + " --help"});
+            return fail(name, {ErrorCode::input, "invalid " + command + " options. See " + name + " --help"});
         }
     }
     if (!options.contains("--source") || !options.contains("--model") ||
         (options.contains("--prompt") && options.contains("--spec"))) {
-        return fail(name, {ErrorCode::input, "generate-cmake requires --source and --model. "
+        return fail(name, {ErrorCode::input, command + " requires --source and --model. "
             "Choose either --prompt or --spec"});
     }
     const auto source = path_from_utf8(options.at("--source"));
+    const auto log = fs::path("out/logs/inference") / JobId::generate().value;
+    if (whole_project) {
+        if (fs::exists(fs::symlink_status(source))) {
+            return fail(name, {ErrorCode::input, "destination already exists; choose a new --source directory"});
+        }
+        auto prompt = read_prompt(options, fs::current_path());
+        if (const auto* error = get_if<Error>(&prompt)) return fail(name, *error);
+        const auto result = infer_project({options.at("--model"), move(get<string>(prompt)), {}, curl_path(options), log});
+        if (const auto* error = get_if<Error>(&result)) return fail(name, *error);
+        const auto& files = get<vector<ProjectFile>>(result);
+        const auto published = publish_project(source, files);
+        if (const auto* error = get_if<Error>(&published)) return fail(name, *error);
+        const auto path = get<fs::path>(published).generic_u8string();
+        cout << "Generated project in " << string(path.begin(), path.end()) << endl;
+        for (const auto& file : files) cout << "  " << file.path << endl;
+        cout << "Inference logs " << log.generic_string() << endl;
+        cout << "Review the files, then run " << name
+             << " build --trust-source with a separate build directory. See README." << endl;
+        return 0;
+    }
     auto inputs = cmake_inputs(source);
     if (const auto* error = get_if<Error>(&inputs)) return fail(name, *error);
 
     auto prompt = read_prompt(options, source);
     if (const auto* error = get_if<Error>(&prompt)) return fail(name, *error);
-    const auto log = fs::path("out/logs/inference") / JobId::generate().value;
     const auto result = infer_cmake({options.at("--model"), move(get<string>(prompt)),
         move(get<vector<string>>(inputs)), curl_path(options), log});
     if (const auto* error = get_if<Error>(&result)) return fail(name, *error);
@@ -253,6 +275,8 @@ int dispatch(const vector<string>& args) {
                   << "       " << name << " init --source NEW_DIR [--name NAME]\n"
                   << "       " << name << " generate-cmake --source DIR --model NAME:TAG\n"
                   << "          [--prompt TEXT | --spec FILE] [--curl FILE]\n"
+                  << "       " << name << " generate-project --source NEW_DIR --model NAME:TAG\n"
+                  << "          [--prompt TEXT | --spec FILE] [--curl FILE]\n"
                   << "       " << name << " build --trust-source --source DIR --build-dir NEW_DIR\n"
                   << "          --cmake FILE --ctest FILE --ninja FILE --compiler FILE [--profile Debug]\n"
                   << "       " << name << " repair-cmake --trust-source --source DIR --model NAME:TAG\n"
@@ -270,9 +294,10 @@ int dispatch(const vector<string>& args) {
         cout << name << ' ' << GREMLIN_VERSION << endl;
         return 0;
     }
-    if (args[1] == "build" || args[1] == "init" || args[1] == "generate-cmake" || args[1] == "repair-cmake") {
+    if (args[1] == "build" || args[1] == "init" || args[1] == "generate-project" ||
+        args[1] == "generate-cmake" || args[1] == "repair-cmake") {
         try {
-            if (args[1] == "generate-cmake") return generate_cmake(name, args);
+            if (args[1] == "generate-cmake" || args[1] == "generate-project") return generate_cmake(name, args);
             if (args[1] == "repair-cmake") return repair_project(name, args);
             return args[1] == "init" ? init_project(name, args) : build_project(name, args);
         } catch (const exception& error) {

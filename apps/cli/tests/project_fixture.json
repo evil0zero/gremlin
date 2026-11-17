@@ -1,0 +1,21 @@
+{
+  "specification": "# Fixture program\nCreate a C++ executable that prints the value supplied by a local header. The output must be fixture. Add a CTest script to check it.\n",
+  "files": [
+    {
+      "path": "main.cpp",
+      "content": "#include \"status.hpp\"\n#include <iostream>\n\nint main() { std::cout << status_text() << '\\n'; }\n"
+    },
+    {
+      "path": "include/status.hpp",
+      "content": "#pragma once\r\n\r\ninline constexpr const char* status_text() { return \"fixture\"; }\r\n"
+    },
+    {
+      "path": "CMakeLists.txt",
+      "content": "cmake_minimum_required(VERSION 3.21)\nproject(Fixture LANGUAGES CXX)\nadd_executable(status-check main.cpp)\ntarget_compile_features(status-check PRIVATE cxx_std_20)\ntarget_include_directories(status-check PRIVATE include)\nenable_testing()\nadd_test(NAME output COMMAND \"${CMAKE_COMMAND}\" \"-DAPP=$<TARGET_FILE:status-check>\" -P \"${CMAKE_CURRENT_SOURCE_DIR}/tests/check.cmake\")\n"
+    },
+    {
+      "path": "tests/check.cmake",
+      "content": "execute_process(COMMAND \"${APP}\" RESULT_VARIABLE code OUTPUT_VARIABLE output OUTPUT_STRIP_TRAILING_WHITESPACE)\nif(NOT code STREQUAL \"0\" OR NOT output STREQUAL \"fixture\")\n    message(FATAL_ERROR \"Unexpected status output: ${code} ${output}\")\nendif()\n"
+    }
+  ]
+}

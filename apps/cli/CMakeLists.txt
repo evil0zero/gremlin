@@ -15,6 +15,15 @@ if(WIN32)
 endif()
 
 if(BUILD_TESTING)
+    add_test(NAME cli.generate_project_arguments COMMAND ${CMAKE_COMMAND}
+        "-DEXE=$<TARGET_FILE:gremlin>" -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/generate_project.cmake")
+    find_package(nlohmann_json 3.11 CONFIG REQUIRED)
+    add_executable(cli_project_fake_curl tests/fake_project_curl.cpp)
+    gremlin_target(cli_project_fake_curl)
+    target_link_libraries(cli_project_fake_curl PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME cli.generate_project_from_spec COMMAND ${CMAKE_COMMAND}
+        "-DEXE=$<TARGET_FILE:gremlin>" "-DCURL=$<TARGET_FILE:cli_project_fake_curl>"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/generate_project_from_spec.cmake")
     add_test(NAME cli.renamed_invocation COMMAND ${CMAKE_COMMAND}
         "-DEXE=$<TARGET_FILE:gremlin>" -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/renamed.cmake")
     add_test(NAME cli.submit_and_query COMMAND ${CMAKE_COMMAND}

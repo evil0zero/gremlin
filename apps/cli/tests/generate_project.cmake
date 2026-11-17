@@ -1,0 +1,15 @@
+string(RANDOM LENGTH 12 ALPHABET 0123456789abcdef suffix)
+set(dest "cli-project-${suffix}")
+execute_process(COMMAND "${EXE}" generate-project --source "${dest}" --model sample:model --prompt x --spec y
+    RESULT_VARIABLE code ERROR_VARIABLE error)
+if(NOT code EQUAL 2 OR EXISTS "${dest}")
+    message(FATAL_ERROR "Conflicting prompts accepted: ${code} ${error}")
+endif()
+file(MAKE_DIRECTORY "${dest}")
+file(WRITE "${dest}/keep.txt" "original")
+execute_process(COMMAND "${EXE}" generate-project --source "${dest}" --model sample:model --prompt x
+    RESULT_VARIABLE code ERROR_VARIABLE error)
+file(READ "${dest}/keep.txt" contents)
+if(NOT code EQUAL 2 OR NOT error MATCHES "destination already exists" OR NOT contents STREQUAL "original")
+    message(FATAL_ERROR "Expected destination collision: ${code} ${error}")
+endif()

@@ -11,6 +11,9 @@ namespace {
 Result<nlohmann::json> decode_proposal(string_view response) {
     using nlohmann::json;
     const auto envelope = json::parse(response, nullptr, false);
+    if (envelope.is_object() && envelope.contains("done_reason") && envelope["done_reason"] == "length") {
+        return Error{ErrorCode::prerequisite, "Ollama exhausted the generation token limit; try a smaller project specification"};
+    }
     if (!envelope.is_object() || envelope.contains("error") ||
         !envelope.contains("done") || envelope["done"] != true ||
         (envelope.contains("done_reason") && envelope["done_reason"] != "stop") ||
@@ -46,6 +49,22 @@ Result<string> decode_cmake_reply(string_view response) {
     }
     if (cmake.back() != '\n') cmake.push_back('\n');
     return cmake;
+}
+
+Result<vector<ProjectFile>> decode_project_reply(string_view response) {
+    const auto decoded = decode_proposal(response);
+    if (const auto* error = get_if<Error>(&decoded)) return *error;
+    const auto& proposal = get<nlohmann::json>(decoded);
+    const Error malformed{ErrorCode::input, "expected JSON with one files array containing path and content strings"};
+    if (!proposal.is_object() || proposal.size() != 1 || !proposal.contains("files") ||
+        !proposal["files"].is_array() || proposal["files"].empty() || proposal["files"].size() > 64) return malformed;
+    vector<ProjectFile> files;
+    for (const auto& file : proposal["files"]) {
+        if (!file.is_object() || file.size() != 2 || !file.contains("path") || !file["path"].is_string() ||
+            !file.contains("content") || !file["content"].is_string()) return malformed;
+        files.push_back({file["path"].get<string>(), file["content"].get<string>()});
+    }
+    return files;
 }
 
 Result<vector<string>> decode_source_reply(string_view response) {

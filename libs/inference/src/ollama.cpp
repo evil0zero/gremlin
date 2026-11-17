@@ -16,7 +16,7 @@ namespace {
 
 using nlohmann::json;
 namespace fs = filesystem;
-constexpr size_t response_limit = 262144;
+constexpr size_t response_limit = 1048576;
 
 struct Service {
     const string& model;
@@ -163,7 +163,8 @@ bool valid_model_name(string_view name) {
         });
 }
 
-Result<string> request_chat(const Service& request, const json& payload) {
+Result<string> request_chat(const Service& request, const json& payload,
+        chrono::seconds timeout = chrono::seconds(180)) {
     if (!valid_model_name(request.model)) return Error{ErrorCode::input, "expected a local model name with its tag"};
     if (!fs::is_regular_file(request.curl)) {
         return Error{ErrorCode::prerequisite, "curl executable is missing. Supply its path with --curl"};
@@ -181,7 +182,7 @@ Result<string> request_chat(const Service& request, const json& payload) {
     if (!is_local_model(get<string>(show))) {
         return Error{ErrorCode::policy, "Ollama did not identify the selected model as a readable local blob"};
     }
-    return exchange(request, "chat", payload, chrono::seconds(180));
+    return exchange(request, "chat", payload, timeout);
 }
 
 json repair_chat_request(const SourceRepairRequest& request) {
@@ -219,6 +220,41 @@ Result<string> infer_cmake(const CMakeInferenceRequest& request) {
         return inference::decode_cmake_reply(get<string>(reply));
     } catch (const json::exception&) {
         return Error{ErrorCode::input, "prompt and filenames must be valid UTF-8"};
+    } catch (const fs::filesystem_error& error) {
+        return Error{ErrorCode::internal, error.what()};
+    }
+}
+
+Result<vector<ProjectFile>> infer_project(const CMakeInferenceRequest& request) {
+    if (request.prompt.size() > cmake_prompt_limit ||
+        request.prompt.find_first_not_of(" \t\n\r") == string::npos) {
+        return Error{ErrorCode::input, "expected a nonempty project specification of at most 8192 bytes"};
+    }
+    try {
+        json payload = {
+            {"model", request.model}, {"stream", false}, {"keep_alive", 0},
+            {"options", {{"temperature", 0}, {"num_ctx", 24576}, {"num_predict", 12288}}},
+            {"format", json::parse(R"json({"type":"object","additionalProperties":false,"required":["files"],
+                "properties":{"files":{"type":"array","items":{"type":"object","additionalProperties":false,
+                "required":["path","content"],"properties":{"path":{"type":"string"},"content":{"type":"string"}}}}}})json")},
+            {"messages", json::array({
+                {{"role","system"},{"content",
+                    "Create a complete working C++ project from the specification alone. Return only a JSON files array "
+                    "with relative slash-separated paths and complete file text. Include main.cpp or the specified entry point, "
+                    "all local implementation files and headers, root CMakeLists.txt, and every test and fixture under tests/. "
+                    "Default to CMake 3.21 and C++20. Add the executable and libraries and register behavioral CTest tests "
+                    "that run the built application and check its specified results. Use only the specified dependencies. "
+                    "No placeholders, markdown, missing files, or installation commands. Preserve all source newlines."}},
+                {{"role","user"},{"content",request.prompt}}
+            })}
+        };
+        // GPT-OSS accepts named reasoning levels. Leave its budget available for file contents.
+        if (request.model.starts_with("gpt-oss:")) payload["think"] = "low";
+        const auto reply = request_chat({request.model, request.curl, request.log_dir}, payload, chrono::seconds(360));
+        if (const auto* error = get_if<Error>(&reply)) return *error;
+        return inference::decode_project_reply(get<string>(reply));
+    } catch (const json::exception& error) {
+        return Error{ErrorCode::input, string("could not encode project request: ") + error.what()};
     } catch (const fs::filesystem_error& error) {
         return Error{ErrorCode::internal, error.what()};
     }

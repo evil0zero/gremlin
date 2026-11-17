@@ -7,6 +7,10 @@ using namespace std;
 
 namespace gremlin {
 
+Result<monostate> publish_new_directory(const filesystem::path& staged, const filesystem::path& destination) {
+    return publish_new_file(staged, destination);
+}
+
 filesystem::path path_from_utf8(string_view value) {
     return filesystem::path(u8string(value.begin(), value.end()));
 }
