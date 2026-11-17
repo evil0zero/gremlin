@@ -47,3 +47,25 @@ foreach(spec_size IN ITEMS 15537 32768)
         message(FATAL_ERROR "Unexpected generated paths: ${actual_paths}")
     endif()
 endforeach()
+
+file(WRITE "${work_dir}/expected-timeout.txt" "123\n")
+set(destination "${work_dir}/generated explicit timeout")
+execute_process(COMMAND "${EXE}" generate-project --source "${destination}" --spec "${spec}"
+    --model fixture:local --curl "${CURL}" --timeout-seconds 123
+    WORKING_DIRECTORY "${work_dir}" TIMEOUT 25
+    RESULT_VARIABLE code OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT code STREQUAL "0" OR NOT EXISTS "${destination}/main.cpp")
+    message(FATAL_ERROR "Explicit generation timeout returned ${code}: ${output}${error}")
+endif()
+
+file(WRITE "${work_dir}/expected-timeout.txt" "17\n")
+file(WRITE "${work_dir}/simulate-timeout.txt" "Simulate curl exit 28 without waiting.\n")
+set(destination "${work_dir}/timed out project")
+execute_process(COMMAND "${EXE}" generate-project --source "${destination}" --spec "${spec}"
+    --model fixture:local --curl "${CURL}" --timeout-seconds 17
+    WORKING_DIRECTORY "${work_dir}" TIMEOUT 25
+    RESULT_VARIABLE code OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT code STREQUAL "3" OR EXISTS "${destination}" OR
+        NOT error MATCHES "timed out after 17 seconds" OR NOT error MATCHES "chat.log")
+    message(FATAL_ERROR "Expected actionable timeout failure, got ${code}: ${output}${error}")
+endif()

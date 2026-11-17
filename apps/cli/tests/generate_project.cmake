@@ -33,3 +33,14 @@ foreach(kind IN ITEMS missing empty oversized)
         message(FATAL_ERROR "Oversized diagnostic omitted actual size or limit: ${error}")
     endif()
 endforeach()
+
+foreach(command IN ITEMS generate-project generate-cmake)
+    foreach(timeout IN ITEMS 0 -1 7201 17s 1.5 +2 999999999999999999999999999999)
+        execute_process(COMMAND "${EXE}" "${command}" --source "${new_dest}"
+            --prompt "A specification" --model sample:model --curl missing-provider
+            --timeout-seconds "${timeout}" RESULT_VARIABLE code ERROR_VARIABLE error)
+        if(NOT code EQUAL 2 OR EXISTS "${new_dest}" OR NOT error MATCHES "--timeout-seconds")
+            message(FATAL_ERROR "Invalid ${command} timeout ${timeout} returned ${code}: ${error}")
+        endif()
+    endforeach()
+endforeach()

@@ -15,9 +15,11 @@ int main(int argc, char** argv) {
     const string_view url = argv[argc - 1];
     fs::path output_path;
     fs::path request_path;
+    string timeout;
     for (int i = 1; i + 1 < argc; ++i) {
         const string_view option = argv[i];
         if (option == "--output") output_path = argv[++i];
+        if (option == "--max-time") timeout = argv[++i];
         if (option == "--data-binary") {
             const string_view data = argv[++i];
             if (!data.starts_with('@')) return 2;
@@ -54,6 +56,21 @@ int main(int argc, char** argv) {
             if (context < specification.size() + 12288 + 2048 || context > 49152) {
                 cerr << "The chat context does not cover the specification and output budget" << endl;
                 return 8;
+            }
+            string expected_timeout = "900";
+            if (fs::exists("expected-timeout.txt")) {
+                ifstream expected("expected-timeout.txt");
+                expected >> expected_timeout;
+                if (!expected) return 9;
+            }
+            if (timeout != expected_timeout) {
+                cerr << "Expected chat timeout " << expected_timeout << ", got " << timeout << endl;
+                return 10;
+            }
+            if (fs::exists("simulate-timeout.txt")) {
+                cerr << "curl: (28) Simulated request timeout" << endl;
+                cout << "http=000" << endl;
+                return 28;
             }
             const json reply = {{"files", fixture.at("files")}};
             response = {{"done", true}, {"done_reason", "stop"},

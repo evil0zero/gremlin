@@ -37,6 +37,12 @@ a complete, validated file inventory to a new directory. Model-generated files
 are proposals. Build and CTest results are recorded separately in the build
 directory's `gremlin-logs`. Generated tests belong under `tests/`.
 
+Project generation allows 900 seconds for the model's response. To allow more
+time for a large project or a slower local model, pass `--timeout-seconds 1800`.
+Values from 1 to 7200 are accepted. `generate-cmake` supports the same option
+and defaults to 180 seconds. Ollama returns the completed response at the end
+of generation, so the CLI may remain quiet while the model generates files.
+
 ## Generate CMake from a prompt
 
 Start your existing local Ollama instance with cloud features disabled and use an installed model. For example, in a separate PowerShell window:

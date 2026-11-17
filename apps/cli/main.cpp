@@ -111,7 +111,7 @@ int generate_cmake(const string& name, const vector<string>& args) {
         const auto& option = args[i];
         if (i + 1 == args.size() || args[i + 1].empty() ||
             (option != "--source" && option != "--model" && option != "--curl" &&
-             option != "--prompt" && option != "--spec") ||
+             option != "--prompt" && option != "--spec" && option != "--timeout-seconds") ||
             !options.emplace(option, args[i + 1]).second) {
             return fail(name, {ErrorCode::input, "invalid " + command + " options. See " + name + " --help"});
         }
@@ -121,6 +121,17 @@ int generate_cmake(const string& name, const vector<string>& args) {
         return fail(name, {ErrorCode::input, command + " requires --source and --model. "
             "Choose either --prompt or --spec"});
     }
+    optional<chrono::seconds> timeout;
+    if (options.contains("--timeout-seconds")) {
+        const auto& value = options.at("--timeout-seconds");
+        int seconds = int();
+        const auto end = value.data() + value.size();
+        const auto parsed = from_chars(value.data(), end, seconds);
+        if (parsed.ec != errc{} || parsed.ptr != end || seconds < 1 || seconds > 7200) {
+            return fail(name, {ErrorCode::input, "--timeout-seconds must be an integer from 1 to 7200"});
+        }
+        timeout = chrono::seconds(seconds);
+    }
     const auto source = path_from_utf8(options.at("--source"));
     const auto log = fs::path("out/logs/inference") / JobId::generate().value;
     if (whole_project) {
@@ -129,7 +140,9 @@ int generate_cmake(const string& name, const vector<string>& args) {
         }
         auto prompt = read_prompt(options, fs::current_path(), project_prompt_limit);
         if (const auto* error = get_if<Error>(&prompt)) return fail(name, *error);
-        const auto result = infer_project({options.at("--model"), move(get<string>(prompt)), {}, curl_path(options), log});
+        cout << "Generating project with " << options.at("--model") << ". Waiting up to "
+             << timeout.value_or(chrono::seconds(900)).count() << " seconds for Ollama." << endl;
+        const auto result = infer_project({options.at("--model"), move(get<string>(prompt)), {}, curl_path(options), log, timeout});
         if (const auto* error = get_if<Error>(&result)) return fail(name, *error);
         const auto& files = get<vector<ProjectFile>>(result);
         const auto published = publish_project(source, files);
@@ -148,7 +161,7 @@ int generate_cmake(const string& name, const vector<string>& args) {
     auto prompt = read_prompt(options, source);
     if (const auto* error = get_if<Error>(&prompt)) return fail(name, *error);
     const auto result = infer_cmake({options.at("--model"), move(get<string>(prompt)),
-        move(get<vector<string>>(inputs)), curl_path(options), log});
+        move(get<vector<string>>(inputs)), curl_path(options), log, timeout});
     if (const auto* error = get_if<Error>(&result)) return fail(name, *error);
     const auto published = publish_cmake_proposal(source, get<string>(result));
     if (const auto* error = get_if<Error>(&published)) return fail(name, *error);
@@ -288,9 +301,9 @@ int dispatch(const vector<string>& args) {
                   << "       " << name << " jobs status DATABASE ID\n"
                   << "       " << name << " init --source NEW_DIR [--name NAME]\n"
                   << "       " << name << " generate-cmake --source DIR --model NAME:TAG\n"
-                  << "          [--prompt TEXT | --spec FILE] [--curl FILE]\n"
+                  << "          [--prompt TEXT | --spec FILE] [--curl FILE] [--timeout-seconds 1-7200]\n"
                   << "       " << name << " generate-project --source NEW_DIR --model NAME:TAG\n"
-                  << "          [--prompt TEXT | --spec FILE] [--curl FILE]\n"
+                  << "          [--prompt TEXT | --spec FILE] [--curl FILE] [--timeout-seconds 1-7200]\n"
                   << "       " << name << " build --trust-source --source DIR --build-dir NEW_DIR\n"
                   << "          --cmake FILE --ctest FILE --ninja FILE --compiler FILE [--profile Debug]\n"
                   << "       " << name << " repair-cmake --trust-source --source DIR --model NAME:TAG\n"

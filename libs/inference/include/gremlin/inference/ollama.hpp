@@ -3,7 +3,9 @@
 #include "gremlin/core/core.hpp"
 #include "gremlin/core/project_file.hpp"
 
+#include <chrono>
 #include <filesystem>
+#include <optional>
 #include <vector>
 
 namespace gremlin {
@@ -14,6 +16,8 @@ struct CMakeInferenceRequest {
     std::vector<std::string> source_files;
     std::filesystem::path curl;
     std::filesystem::path log_dir;
+    // Unset uses the operation's default deadline.
+    std::optional<std::chrono::seconds> timeout = std::nullopt;
 };
 
 inline constexpr std::size_t cmake_prompt_limit = 8192;

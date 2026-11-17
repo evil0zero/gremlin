@@ -9,6 +9,17 @@ using namespace gremlin;
 using nlohmann::json;
 
 int main() {
+    for (const int seconds : {0, -1, 7201}) {
+        const CMakeInferenceRequest request{"fixture:local", "A specification", {}, {}, {}, chrono::seconds(seconds)};
+        const auto project = infer_project(request);
+        const auto* project_error = get_if<Error>(&project);
+        const auto cmake = infer_cmake(request);
+        const auto* cmake_error = get_if<Error>(&cmake);
+        if (!project_error || project_error->code != ErrorCode::input ||
+            project_error->message.find("timeout") == string::npos ||
+            !cmake_error || cmake_error->code != ErrorCode::input ||
+            cmake_error->message.find("timeout") == string::npos) return 11;
+    }
     const auto oversized = infer_project({"fixture:local", string(project_prompt_limit + 1, 'x'), {}, {}, {}});
     const auto* oversized_error = get_if<Error>(&oversized);
     if (!oversized_error || oversized_error->code != ErrorCode::input ||

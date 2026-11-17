@@ -82,7 +82,14 @@ Result<string> exchange(const Service& request, const char* endpoint,
         if (!output) return Error{ErrorCode::internal, "cannot finish inference log"};
     }
     const auto failure = Error{ErrorCode::prerequisite, "Ollama " + operation + " request failed. See " + utf8(log)};
-    if (!code || code->timed_out || code->code != 0) return failure;
+    if (!code) return Error{ErrorCode::prerequisite, "Ollama " + operation + " could not launch curl: " +
+        get<Error>(result).message + ". See " + utf8(log)};
+    if (code->timed_out || code->code == 28) {
+        return Error{ErrorCode::prerequisite, "Ollama " + operation + " timed out after " +
+            std::to_string(timeout.count()) + " seconds. See " + utf8(log)};
+    }
+    if (code->code != 0) return Error{ErrorCode::prerequisite, "Ollama " + operation +
+        " request failed (curl exit " + std::to_string(code->code) + "). See " + utf8(log)};
     ifstream status(log);
     string line;
     bool http_ok = false;
@@ -165,6 +172,9 @@ bool valid_model_name(string_view name) {
 
 Result<string> request_chat(const Service& request, const json& payload,
         chrono::seconds timeout = chrono::seconds(180)) {
+    if (timeout < chrono::seconds(1) || timeout > chrono::seconds(7200)) {
+        return Error{ErrorCode::input, "inference timeout must be from 1 to 7200 seconds"};
+    }
     if (!valid_model_name(request.model)) return Error{ErrorCode::input, "expected a local model name with its tag"};
     if (!fs::is_regular_file(request.curl)) {
         return Error{ErrorCode::prerequisite, "curl executable is missing. Supply its path with --curl"};
@@ -215,7 +225,8 @@ Result<string> infer_cmake(const CMakeInferenceRequest& request) {
         return Error{ErrorCode::input, "expected a nonempty prompt of at most 8192 bytes"};
     }
     try {
-        const auto reply = request_chat({request.model, request.curl, request.log_dir}, chat_request(request));
+        const auto reply = request_chat({request.model, request.curl, request.log_dir}, chat_request(request),
+            request.timeout.value_or(chrono::seconds(180)));
         if (const auto* error = get_if<Error>(&reply)) return *error;
         return inference::decode_cmake_reply(get<string>(reply));
     } catch (const json::exception&) {
@@ -253,7 +264,8 @@ Result<vector<ProjectFile>> infer_project(const CMakeInferenceRequest& request) 
         };
         // GPT-OSS accepts named reasoning levels. Leave its budget available for file contents.
         if (request.model.starts_with("gpt-oss:")) payload["think"] = "low";
-        const auto reply = request_chat({request.model, request.curl, request.log_dir}, payload, chrono::seconds(360));
+        const auto reply = request_chat({request.model, request.curl, request.log_dir}, payload,
+            request.timeout.value_or(chrono::seconds(900)));
         if (const auto* error = get_if<Error>(&reply)) return *error;
         return inference::decode_project_reply(get<string>(reply));
     } catch (const json::exception& error) {
