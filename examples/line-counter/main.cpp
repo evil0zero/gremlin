@@ -20,5 +20,5 @@ int main(int argc, char** argv) {
         cerr << "Could not read input\n";
         return 3;
     }
-    cout << lines << '\n';
+    cout << lines << endl;
 }

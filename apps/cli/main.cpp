@@ -82,7 +82,7 @@ int init_project(const string& name, const vector<string>& args) {
     if (const auto* error = get_if<Error>(&result)) return fail(name, *error);
     const auto directory = get<filesystem::path>(result).generic_u8string();
     cout << "Created CMakeLists.txt, main.cpp and check.cmake in "
-              << string(directory.begin(), directory.end()) << '\n';
+              << string(directory.begin(), directory.end()) << endl;
     return 0;
 }
 
@@ -118,7 +118,7 @@ int generate_cmake(const string& name, const vector<string>& args) {
     if (const auto* error = get_if<Error>(&published)) return fail(name, *error);
     const auto path = get<fs::path>(published).generic_u8string();
     cout << "Generated " << string(path.begin(), path.end()) << " using " << options.at("--model")
-              << "\nInference logs " << log.generic_string() << '\n';
+              << "\nInference logs " << log.generic_string() << endl;
     return 0;
 }
 
@@ -163,7 +163,7 @@ int build_project(const string& name, const vector<string>& args) {
     const auto build = evidence.build_dir.generic_u8string();
     const auto junit = evidence.junit.generic_u8string();
     cout << "Build and tests passed in " << string(build.begin(), build.end())
-              << "\nJUnit report " << string(junit.begin(), junit.end()) << '\n';
+              << "\nJUnit report " << string(junit.begin(), junit.end()) << endl;
     return 0;
 }
 
@@ -237,9 +237,9 @@ int repair_project(const string& name, const vector<string>& args) {
         return string(text.begin(), text.end());
     };
     cout << "job=" << run.job.value << " state=" << to_string(run.state) << " attempts=" << run.attempts
-              << "\nlog=" << path(run.directory / "gremlin.log") << '\n';
+              << "\nlog=" << path(run.directory / "gremlin.log") << endl;
     if (run.failure) return fail(name, *run.failure);
-    cout << "executable=" << path(run.executable) << "\njunit=" << path(run.evidence->junit) << '\n';
+    cout << "executable=" << path(run.executable) << "\njunit=" << path(run.evidence->junit) << endl;
     return 0;
 }
 
@@ -263,11 +263,11 @@ int dispatch(const vector<string>& args) {
                   << "init writes a C++ starter app and its CMake/CTest files.\n"
                   << "generate-cmake writes a local Ollama proposal for CMakeLists.txt.\n"
                   << "build configures, builds and tests an existing trusted CMake project.\n"
-                  << "repair-cmake schedules and repairs a build recipe for trusted C++ files.\n";
+                  << "repair-cmake schedules and repairs a build recipe for trusted C++ files." << endl;
         return 0;
     }
     if (args.size() == 2 && args[1] == "--version") {
-        cout << name << ' ' << GREMLIN_VERSION << '\n';
+        cout << name << ' ' << GREMLIN_VERSION << endl;
         return 0;
     }
     if (args[1] == "build" || args[1] == "init" || args[1] == "generate-cmake" || args[1] == "repair-cmake") {
@@ -300,13 +300,13 @@ int dispatch(const vector<string>& args) {
             const auto id = JobId::generate();
             const auto result = store.submit(id, args[3]);
             if (const auto* error = get_if<Error>(&result)) return fail(name, *error);
-            cout << id.value << " PENDING\n";
+            cout << id.value << " PENDING" << endl;
         } else {
             const auto id = JobId::parse(args[4]);
             if (const auto* error = get_if<Error>(&id)) return fail(name, *error);
             const auto result = store.state(get<JobId>(id));
             if (const auto* error = get_if<Error>(&result)) return fail(name, *error);
-            cout << args[4] << ' ' << to_string(get<JobState>(result)) << '\n';
+            cout << args[4] << ' ' << to_string(get<JobState>(result)) << endl;
         }
     } catch (const exception& error) {
         return fail(name, {ErrorCode::internal, error.what()});

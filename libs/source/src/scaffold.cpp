@@ -53,7 +53,7 @@ constexpr auto main_source = R"cpp(#include <iostream>
 using namespace std;
 
 int main() {
-    cout << "sweet nothings\n";
+    cout << "sweet nothings" << endl;
 }
 )cpp";
 

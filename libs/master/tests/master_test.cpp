@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     const auto& run = get<RepairRun>(result);
-    cout << run.directory << '\n';
+    cout << run.directory << endl;
     const auto state = JobStore::open(run.directory / "jobs.sqlite");
     if (state.index() || get<JobState>(get<JobStore::Handle>(state)->state(run.job)) != run.state) return 4;
     const auto first = run.directory / "attempt-1";

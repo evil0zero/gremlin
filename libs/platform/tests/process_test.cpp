@@ -30,7 +30,7 @@ int ENTRY_POINT(int argc, ARG_CHAR** argv) {
         for (int i = 1; i < argc; ++i) {
             if (filesystem::path(argv[i]) != arguments[i - 1]) return 3;
         }
-        cout << "stdout\n" << flush;
+        cout << "stdout" << endl;
         cerr << "stderr\n";
         return 17;
     }

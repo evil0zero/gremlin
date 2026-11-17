@@ -56,6 +56,6 @@ int wmain(int argc, wchar_t** argv) {
         captured.append(buffer, size);
     }
     CloseHandle(read);
-    cout << "child exit=" << exit_code << '\n' << captured;
+    cout << "child exit=" << exit_code << endl << captured;
     return exit_code == 0 && captured.starts_with("Usage: F\xc3\xa0" "cade.CmD ") ? 0 : 7;
 }
