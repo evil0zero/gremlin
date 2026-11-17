@@ -1,0 +1,18 @@
+string(RANDOM LENGTH 16 ALPHABET 0123456789abcdef suffix)
+set(database "${CMAKE_CURRENT_BINARY_DIR}/submit-Über-${suffix}.sqlite")
+execute_process(COMMAND "${EXE}" submit "${database}" "Build a utility that transforms a file."
+    RESULT_VARIABLE code OUTPUT_VARIABLE submitted ERROR_VARIABLE error OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT code EQUAL 0 OR NOT EXISTS "${database}" OR NOT submitted MATCHES "^([0-9a-f]+) PENDING$")
+    message(FATAL_ERROR "Submit returned ${code}: ${submitted}${error}")
+endif()
+set(id "${CMAKE_MATCH_1}")
+string(LENGTH "${id}" length)
+if(NOT length EQUAL 32)
+    message(FATAL_ERROR "Invalid submitted ID: ${id}")
+endif()
+execute_process(COMMAND "${EXE}" jobs status "${database}" "${id}"
+    RESULT_VARIABLE code OUTPUT_VARIABLE queried ERROR_VARIABLE error OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT code EQUAL 0 OR NOT queried STREQUAL submitted)
+    message(FATAL_ERROR "Query returned ${code}: ${queried}${error}")
+endif()
+file(REMOVE "${database}")

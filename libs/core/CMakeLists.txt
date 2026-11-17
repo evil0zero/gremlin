@@ -1,0 +1,11 @@
+add_library(gremlin_core STATIC src/core.cpp)
+gremlin_target(gremlin_core)
+target_compile_features(gremlin_core PUBLIC cxx_std_20)
+target_include_directories(gremlin_core PUBLIC include)
+
+if(BUILD_TESTING)
+    add_executable(core_test tests/core_test.cpp)
+    gremlin_target(core_test)
+    target_link_libraries(core_test PRIVATE gremlin_core)
+    add_test(NAME core.contracts COMMAND core_test)
+endif()

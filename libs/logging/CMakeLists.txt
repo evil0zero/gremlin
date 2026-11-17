@@ -1,0 +1,11 @@
+add_library(gremlin_logging STATIC src/jsonl.cpp)
+gremlin_target(gremlin_logging)
+target_include_directories(gremlin_logging PUBLIC include)
+target_link_libraries(gremlin_logging PUBLIC gremlin_core)
+
+if(BUILD_TESTING)
+    add_executable(logging_test tests/logging_test.cpp)
+    gremlin_target(logging_test)
+    target_link_libraries(logging_test PRIVATE gremlin_logging)
+    add_test(NAME logging.jsonl_rotation COMMAND logging_test)
+endif()

@@ -1,0 +1,11 @@
+add_library(gremlin_source STATIC src/scaffold.cpp src/cmake_proposal.cpp)
+gremlin_target(gremlin_source)
+target_include_directories(gremlin_source PUBLIC include)
+target_link_libraries(gremlin_source PUBLIC gremlin_core PRIVATE gremlin_platform)
+
+if(BUILD_TESTING)
+    add_executable(cmake_proposal_test tests/cmake_proposal_test.cpp)
+    gremlin_target(cmake_proposal_test)
+    target_link_libraries(cmake_proposal_test PRIVATE gremlin_source)
+    add_test(NAME source.cmake_proposal COMMAND cmake_proposal_test)
+endif()
